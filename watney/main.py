@@ -1,19 +1,12 @@
-import uuid
-from datetime import datetime
 from fastapi import HTTPException
-from uuid import UUID
-
 from fastapi import FastAPI
-
-from sqlalchemy import desc
-from sqlmodel import SQLModel, Field, Session, create_engine, select
-
-from datetime import datetime
-from uuid import UUID
+from fastapi.responses import FileResponse
+from sqlalchemy import distinct
+from sqlmodel import SQLModel, Field, Session, create_engine
 
 from pydantic import BaseModel
-from typing import List
-
+from typing import List, Optional
+import json
 import uuid
 from datetime import datetime
 from typing import Tuple
@@ -99,6 +92,7 @@ class BrokenLinkReport(BaseModel):
 
     report: List[BrokenLinkRepo]
     report_date: datetime
+    report_id: Optional[UUID]
 
 
 class BrokenLinksResponse(BaseModel):
@@ -111,6 +105,28 @@ class BrokenLinksResponse(BaseModel):
     existing_broken_links: List[BrokenLink]
     last_report_id: UUID
     last_report_date: datetime
+
+
+class ReportSummary(BaseModel):
+    report_id: str
+    report_date: datetime
+
+
+class ReportList(BaseModel):
+    reports: List[ReportSummary]
+
+
+def _get_report_list() -> ReportList:
+    query = (
+        select(BrokenLinkReportData.date, BrokenLinkReportData.report_id)
+        .distinct()
+        .order_by(desc(BrokenLinkReportData.date))
+    )
+    result = session.exec(query).fetchall()
+    summary_items = [
+        ReportSummary(report_id=str(x[1]), report_date=x[0].isoformat()) for x in result
+    ]
+    return ReportList(reports=summary_items)
 
 
 app = FastAPI()
@@ -191,8 +207,8 @@ def get_report_by_id(report_id: UUID) -> BrokenLinkReport:
     )
     result = session.exec(query)
     report_data = result.fetchall()
-    report_id = report_data[0].report_id
-    report_date = report_data[1].date
+    report_id = str(report_data[0].report_id)
+    report_date = report_data[0].date.isoformat()
     repo_list = [repo.repo_name for repo in report_data]
     broken_link_repos = []
     for repo_name in repo_list:
@@ -212,7 +228,7 @@ def get_report_by_id(report_id: UUID) -> BrokenLinkReport:
     return BrokenLinkReport(
         report_date=report_date,
         report_id=report_id,
-        broken_link_repos=broken_link_repos,
+        report=broken_link_repos,
     )
 
 
@@ -231,14 +247,29 @@ def report(broken_link_report: BrokenLinkReport):
     return {"report_id": report_id}
 
 
+def get_csv_report_by_id(report_id) -> FileResponse:
+    blr_json = get_report_by_id(report_id)
+    with open("/tmp/json_out.txt", "w") as json_file:
+        json.dump(blr_json, json_file)
+    return FileResponse("/tmp/json_out.txt")
+
+
 @app.get("/report/{report_id}")
-def get_report(report_id):
+def get_report(report_id, csv=False):
     """
     Retrieve the data from a specific report.
-    :param uuid:
+    :param report_id:
+    :param csv:
     :return:
     """
+    if csv:
+        return get_csv_report_by_id(report_id)
     return get_report_by_id(report_id)
+
+
+@app.get("/report_summary")
+def get_report_list():
+    return _get_report_list()
 
 
 @app.get("/broken_links")
