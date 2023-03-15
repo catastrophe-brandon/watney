@@ -1,0 +1,2 @@
+class DuplicateReportError(Exception):
+    pass

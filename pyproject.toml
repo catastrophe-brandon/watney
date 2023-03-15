@@ -23,7 +23,12 @@ classifiers = [
   "Programming Language :: Python :: Implementation :: CPython",
   "Programming Language :: Python :: Implementation :: PyPy",
 ]
-dependencies = []
+dependencies = [
+  "fastapi",
+  "pydantic",
+  "sqlmodel",
+  "uvicorn[standard]",
+]
 dynamic = ["version"]
 
 [project.urls]
