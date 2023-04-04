@@ -31,7 +31,7 @@ def report(broken_link_report: BrokenLinkReport):
 
 
 @app.get("/report/{report_id}")
-def get_report(report_id, csv=False):
+async def get_report(report_id, csv=False):
     """
     Retrieve the data from a specific report.
     :param report_id:
@@ -44,8 +44,8 @@ def get_report(report_id, csv=False):
 
 
 @app.get("/report_summary")
-def get_report_list():
-    return get_report_list_()
+async def get_report_list():
+    return _get_report_list()
 
 
 @app.get("/broken_links")
