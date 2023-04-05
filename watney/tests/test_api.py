@@ -48,13 +48,19 @@ def test_post_bad_report():
     pass
 
 
+def test_broken_links_not_enough_data():
+    response = requests.get("http://localhost:8000/broken_links")
+    assert response.status_code == 200
+    assert "Not enough data" in str(response.content)
+
+
 def test_broken_links():
     """
     Basic happy path test for /broken_links
     :return:
     """
     response = requests.get("http://localhost:8000/broken_links")
-    assert response.status_code == 200
+    assert response.status_code == 200, str(response.content)
 
 
 def test_get_report():

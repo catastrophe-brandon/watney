@@ -8,7 +8,7 @@ from watney.db.session import get_engine_from_settings
 from watney.db.models import create_tables
 from watney.errors import DuplicateReportError
 from watney.helpers import persist, get_csv_report_by_id, get_report_by_id, \
-        get_report_list as get_report_list_
+    get_report_list as get_report_list_, get_last_two_reports
 from watney.schema import BrokenLinkReport, BrokenLinksResponse
 
 app = FastAPI()
@@ -45,11 +45,13 @@ async def get_report(report_id, csv=False):
 
 @app.get("/report_summary")
 async def get_report_list():
-    return _get_report_list()
+    return get_report_list_()
 
 
 @app.get("/broken_links")
 def broken_links():
+    prev_report_id, recent_report_id = get_last_two_reports()
+    new_broken_links, existing_broken_links = get_report_diff(prev_report_id, recent_report_id)
     return BrokenLinksResponse(
         new_broken_links=[],
         existing_broken_links=[],

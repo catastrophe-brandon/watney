@@ -1,7 +1,7 @@
 import json
 from uuid import UUID, uuid4
 from datetime import datetime
-from typing import Tuple
+from typing import Tuple, List
 
 from fastapi.responses import FileResponse
 from sqlmodel import select, desc
@@ -107,7 +107,7 @@ def get_report_by_id(id_: UUID) -> BrokenLinkReport:
     """
     query = select(BrokenLinkReportData).where(
         BrokenLinkReportData.report_id == str(id_)
-    )
+    ).order_by(BrokenLinkReportData.repo_name, BrokenLinkReportData.repo_name)
     result = get_session().exec(query)
     report_data = result.fetchall()
     report_id = str(report_data[0].report_id)
@@ -140,3 +140,43 @@ def get_csv_report_by_id(report_id) -> FileResponse:
     with open("/tmp/json_out.txt", "w") as json_file:
         json.dump(blr_json, json_file)
     return FileResponse("/tmp/json_out.txt")
+
+class NotEnoughDataError(Exception):
+    pass
+
+def get_last_two_reports() -> (UUID, UUID):
+    """
+    Gets the report ids of the most recent two reports
+    :return:
+    """
+    query = select(BrokenLinkReportData.report_id, BrokenLinkReportData.date)\
+        .order_by(desc(BrokenLinkReportData.date)).limit(2)
+    result = get_session().exec(query)
+    last_two = result.fetchall()[0:1]
+    if len(last_two) < 2:
+        raise NotEnoughDataError
+    return last_two[1][0], last_two[0][0]
+
+
+def get_report_diff(prev_id: UUID, new_id: UUID) -> (List[BrokenLink], List[BrokenLink]):
+    """
+    Compare two reports and return the list of newly broken links and the list of known/existing
+    broken links.
+    :return:
+    """
+    existing_broken = []
+    new_broken = []
+    # get both reports
+    old_report = get_report_by_id(prev_id)
+    new_report = get_report_by_id(new_id)
+
+    # walk through the old report row-by-row to compare the broken links with the new report
+    for old_repo in old_report.report:
+        for new_repo in new_report.report:
+            # If repo names match, search for the link in the repo record
+            if new_repo.repo_name == old_repo.repo_name:
+                pass
+                # if the link exists in the new report, add it to the list of known/existing broken
+                #if new_repo.
+                # if the link does not exist in the broken report, it was probably fixed recently
+    return existing_broken, new_broken
