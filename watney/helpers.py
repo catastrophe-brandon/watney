@@ -9,7 +9,13 @@ from sqlmodel import select, desc
 from watney.db.session import get_session
 from watney.db.models import BrokenLinkReportData
 from watney.errors import DuplicateReportError
-from watney.schema import BrokenLink, BrokenLinkRepo, BrokenLinkReport, ReportList, ReportSummary
+from watney.schema import (
+    BrokenLink,
+    BrokenLinkRepo,
+    BrokenLinkReport,
+    ReportList,
+    ReportSummary,
+)
 
 
 def report_exists(report_id: UUID) -> bool:
@@ -52,7 +58,7 @@ def get_report_list() -> ReportList:
 
 
 def create_data(
-        report_id, report_date: datetime, repo: BrokenLinkRepo, link: BrokenLink
+    report_id, report_date: datetime, repo: BrokenLinkRepo, link: BrokenLink
 ) -> BrokenLinkReportData:
     """
     Take the input data and marshall it into a table row.
@@ -102,18 +108,25 @@ def persist(broken_link_report: BrokenLinkReport):
 def get_report_by_id(id_: UUID) -> Optional[BrokenLinkReport]:
     """
     Reconstitute the report from the data in the table
-    :param report_id:
+    :param id_:
     :return:
     """
-    query = select(BrokenLinkReportData).where(
-        BrokenLinkReportData.report_id == str(id_)
-    ).order_by(BrokenLinkReportData.repo_name, BrokenLinkReportData.repo_name)
-    result = get_session().exec(query)
-    report_data = result.fetchall()
+    query = (
+        select(BrokenLinkReportData)
+        .where(BrokenLinkReportData.report_id == str(id_))
+        .order_by(BrokenLinkReportData.repo_name)
+    )
+
+    with get_session() as session:
+        result = session.exec(query)
+        report_data = result.fetchall()
+
     if len(report_data) == 0:
         return None
+    # report_id and date are duplicated across records, rip them out of the first record
     report_id = str(report_data[0].report_id)
     report_date = report_data[0].date.isoformat()
+    # Build a list of all the repo names
     repo_list = [repo.repo_name for repo in report_data]
     broken_link_repos = []
     for repo_name in repo_list:
@@ -153,8 +166,11 @@ def get_last_two_reports() -> Optional[Tuple[UUID, UUID]]:
     Gets the report ids of the most recent two reports
     :return:
     """
-    query = select(BrokenLinkReportData.report_id, BrokenLinkReportData.date) \
-        .order_by(desc(BrokenLinkReportData.date)).limit(2)
+    query = (
+        select(BrokenLinkReportData.report_id, BrokenLinkReportData.date)
+        .order_by(desc(BrokenLinkReportData.date))
+        .limit(2)
+    )
     result = get_session().exec(query)
     last_two = result.fetchall()
     if len(last_two) < 2:
@@ -163,7 +179,9 @@ def get_last_two_reports() -> Optional[Tuple[UUID, UUID]]:
     return last_two[1][0], last_two[0][0]
 
 
-def get_report_diff(prev_id: UUID, new_id: UUID) -> (List[BrokenLink], List[BrokenLink]):
+def get_report_diff(
+    prev_id: UUID, new_id: UUID
+) -> (List[BrokenLink], List[BrokenLink]):
     """
     Compare two reports and return the list of newly broken links and the list of known/existing
     broken links.

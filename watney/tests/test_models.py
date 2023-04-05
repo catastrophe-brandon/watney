@@ -30,7 +30,9 @@ def create_fake_link_data(url) -> BrokenLink:
 
 def create_fake_repo() -> BrokenLinkRepo:
     url = fake.url
-    return BrokenLinkRepo(name=fake.domain_word, url=url, broken_links=create_fake_link_data(url))
+    return BrokenLinkRepo(
+        name=fake.domain_word, url=url, broken_links=create_fake_link_data(url)
+    )
 
 
 def create_fake_repos() -> List[BrokenLinkRepo]:
@@ -41,13 +43,15 @@ def create_fake_repos() -> List[BrokenLinkRepo]:
 
 
 def create_fake_report(
-        report_id: uuid.UUID, report_ts: datetime
+    report_id: uuid.UUID, report_ts: datetime
 ) -> BrokenLinkReportData:
     BrokenLinkReportData()
     fake_repos = create_fake_repos()
     blrd = None
     for fake_repo in fake_repos:
-        broken_link_data = BrokenLink(file=fake_repo.file, url=fake_repo.url, status_code=fake_repo.status_code)
+        broken_link_data = BrokenLink(
+            file=fake_repo.file, url=fake_repo.url, status_code=fake_repo.status_code
+        )
         report_data = create_data(
             report_id=report_id,
             report_date=report_ts,
