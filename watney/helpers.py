@@ -1,7 +1,7 @@
 import json
 from uuid import UUID, uuid4
 from datetime import datetime
-from typing import Tuple, List
+from typing import Tuple, List, Optional
 
 from fastapi.responses import FileResponse
 from sqlmodel import select, desc
@@ -52,7 +52,7 @@ def get_report_list() -> ReportList:
 
 
 def create_data(
-    report_id, report_date: datetime, repo: BrokenLinkRepo, link: BrokenLink
+        report_id, report_date: datetime, repo: BrokenLinkRepo, link: BrokenLink
 ) -> BrokenLinkReportData:
     """
     Take the input data and marshall it into a table row.
@@ -99,7 +99,7 @@ def persist(broken_link_report: BrokenLinkReport):
     return report_id
 
 
-def get_report_by_id(id_: UUID) -> BrokenLinkReport:
+def get_report_by_id(id_: UUID) -> Optional[BrokenLinkReport]:
     """
     Reconstitute the report from the data in the table
     :param report_id:
@@ -110,6 +110,8 @@ def get_report_by_id(id_: UUID) -> BrokenLinkReport:
     ).order_by(BrokenLinkReportData.repo_name, BrokenLinkReportData.repo_name)
     result = get_session().exec(query)
     report_data = result.fetchall()
+    if len(report_data) == 0:
+        return None
     report_id = str(report_data[0].report_id)
     report_date = report_data[0].date.isoformat()
     repo_list = [repo.repo_name for repo in report_data]
@@ -141,20 +143,23 @@ def get_csv_report_by_id(report_id) -> FileResponse:
         json.dump(blr_json, json_file)
     return FileResponse("/tmp/json_out.txt")
 
+
 class NotEnoughDataError(Exception):
     pass
 
-def get_last_two_reports() -> (UUID, UUID):
+
+def get_last_two_reports() -> Optional[Tuple[UUID, UUID]]:
     """
     Gets the report ids of the most recent two reports
     :return:
     """
-    query = select(BrokenLinkReportData.report_id, BrokenLinkReportData.date)\
+    query = select(BrokenLinkReportData.report_id, BrokenLinkReportData.date) \
         .order_by(desc(BrokenLinkReportData.date)).limit(2)
     result = get_session().exec(query)
-    last_two = result.fetchall()[0:1]
+    last_two = result.fetchall()
     if len(last_two) < 2:
-        raise NotEnoughDataError
+        return None
+
     return last_two[1][0], last_two[0][0]
 
 
@@ -177,6 +182,6 @@ def get_report_diff(prev_id: UUID, new_id: UUID) -> (List[BrokenLink], List[Brok
             if new_repo.repo_name == old_repo.repo_name:
                 pass
                 # if the link exists in the new report, add it to the list of known/existing broken
-                #if new_repo.
+                # if new_repo.
                 # if the link does not exist in the broken report, it was probably fixed recently
     return existing_broken, new_broken
