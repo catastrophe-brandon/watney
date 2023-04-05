@@ -44,6 +44,12 @@ def get_report(report_id, csv=False):
     :param csv:
     :return:
     """
+    import uuid
+
+    try:
+        uuid.UUID(report_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"{report_id} is not a valid UUID")
     if csv:
         return get_csv_report_by_id(report_id)
     result = get_report_by_id(report_id)
@@ -64,8 +70,8 @@ def broken_links():
         prev_report_id, recent_report_id
     )
     return BrokenLinksResponse(
-        new_broken_links=[],
-        existing_broken_links=[],
+        new_broken_links=new_broken_links,
+        existing_broken_links=existing_broken_links,
         last_report_id=uuid.uuid4(),
         last_report_date=datetime.now(),
     )

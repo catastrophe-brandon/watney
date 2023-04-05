@@ -40,7 +40,7 @@ def get_last_report_id_and_datestamp() -> Tuple[UUID, datetime]:
     query = select(BrokenLinkReportData.date, BrokenLinkReportData.report_id).order_by(
         desc(BrokenLinkReportData.date)
     )
-    result = get_session().exec(query).first()
+    result: tuple[datetime, UUID] = get_session().exec(query).first()
     return result[1], result[0]
 
 
@@ -136,7 +136,9 @@ def get_report_by_id(id_: UUID) -> Optional[BrokenLinkReport]:
         broken_links = []
         for row in rows_for_repo:
             broken_links.append(
-                BrokenLink(file=row.file, url=row.url, status_code=row.status_code)
+                BrokenLink(
+                    file=row.file, url=repo_url + row.file, status_code=row.status_code
+                )
             )
         broken_link_repos.append(
             BrokenLinkRepo(

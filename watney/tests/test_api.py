@@ -70,7 +70,9 @@ def test_post_bad_report():
     Post an invalid report, confirm a 400
     :return:
     """
-    pass
+    headers = {"Content-type": "application/json"}
+    response = requests.post(f"http://{TEST_HOST}/report", headers=headers, json={})
+    assert response.status_code == 422
 
 
 def test_broken_links_not_enough_data():
