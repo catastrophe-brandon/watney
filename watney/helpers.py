@@ -205,3 +205,16 @@ def get_report_diff(
                 # if new_repo.
                 # if the link does not exist in the broken report, it was probably fixed recently
     return existing_broken, new_broken
+
+
+def clear_db():
+    """
+    Exactly what it sounds like. Nukes all the data. Primarily intended for usage during testing.
+    :return:
+    """
+    with get_session() as session:
+        query = select(BrokenLinkReportData)
+        result = get_session().exec(query)
+        for row in result:
+            session.delete(row)
+        session.commit()

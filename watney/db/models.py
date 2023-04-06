@@ -22,7 +22,7 @@ class BrokenLinkReportData(SQLModel, table=True):
     status_code: int
 
 
-class BrokenLinksData(SQLModel, table=True):
+class BrokenLinksData(SQLModel):
     """
     Stores the latest known broken links.
     """
