@@ -7,23 +7,25 @@ from faker import Faker
 
 fake = Faker()
 
-
+TEST_PROTO = "http"
 TEST_HOST = "localhost:8000"
-URL_ANCHOR = f"http://{TEST_HOST}"
+URL_ANCHOR = f"{TEST_PROTO}://{TEST_HOST}"
 REPORT_URL = f"{URL_ANCHOR}/report"
 BROKEN_LINKS_URL = f"{URL_ANCHOR}/broken_links"
+MAX_BROKEN_LINKS = 20
+MAX_REPOS = 20
 
 
 def create_broken_links(url: str) -> list:
     result = []
-    for i in range(0, 20):
+    for i in range(0, MAX_BROKEN_LINKS):
         result.append({"file": fake.file_path(), "url": url, "status_code": 404})
     return result
 
 
 def create_fake_report_data() -> list:
     result = []
-    for i in range(0, 20):
+    for i in range(0, MAX_REPOS):
         url = fake.url()
         result.append(
             {
