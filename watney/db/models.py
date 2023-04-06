@@ -22,16 +22,6 @@ class BrokenLinkReportData(SQLModel, table=True):
     status_code: int
 
 
-class BrokenLinksData(SQLModel):
-    """
-    Stores the latest known broken links.
-    """
-
-    file: str
-    url: str = Field(default=None, primary_key=True)
-    status_code: int
-
-
 def create_tables(engine: Engine):
     """
     Create the tables in the database
