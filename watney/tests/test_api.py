@@ -2,7 +2,7 @@ import datetime
 from uuid import UUID
 
 import requests
-
+from watney.tests.test_fixtures import empty_db, fake_report
 from faker import Faker
 
 fake = Faker()
@@ -75,18 +75,20 @@ def test_post_bad_report():
     assert response.status_code == 422
 
 
-def test_broken_links_not_enough_data():
+def test_broken_links_not_enough_data(empty_db):
     response = requests.get(f"http://{TEST_HOST}/broken_links")
-    assert response.status_code == 200
+    assert response.status_code == 409
 
 
-def test_broken_links():
+def test_broken_links_no_prev_data(fake_report):
     """
-    Basic happy path test for /broken_links
+    Test when there is no previous report data and we call /broken_links
     :return:
     """
     response = requests.get(f"http://{TEST_HOST}/broken_links")
     assert response.status_code == 200, str(response.content)
+    assert not response.json()["existing_broken_links"]
+    assert response.json()["new_broken_links"] is not None
 
 
 def test_get_report():

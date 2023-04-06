@@ -6,7 +6,7 @@ from fastapi import FastAPI
 
 from watney.db.session import get_engine_from_settings
 from watney.db.models import create_tables
-from watney.errors import DuplicateReportError
+from watney.errors import DuplicateReportError, NoReportDataError
 from watney.helpers import (
     persist,
     get_csv_report_by_id,
@@ -65,10 +65,20 @@ async def get_report_list():
 
 @app.get("/broken_links")
 def broken_links():
-    prev_report_id, recent_report_id = get_last_two_reports()
-    new_broken_links, existing_broken_links = get_report_diff(
-        prev_report_id, recent_report_id
-    )
+    try:
+        prev_report_id, recent_report_id = get_last_two_reports()
+        new_broken_links, existing_broken_links = get_report_diff(
+            prev_report_id, recent_report_id
+        )
+    except NoReportDataError:
+        raise HTTPException(
+            status_code=409, detail="Not enough report data available to analyze"
+        )
+    except TypeError:
+        raise HTTPException(
+            status_code=409, detail="Not enough report data available to analyze"
+        )
+
     return BrokenLinksResponse(
         new_broken_links=new_broken_links,
         existing_broken_links=existing_broken_links,

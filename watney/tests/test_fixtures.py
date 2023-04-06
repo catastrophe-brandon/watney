@@ -111,3 +111,9 @@ def multiple_reports():
         all_data.append(create_fake_report(last_id, last_date))
     yield last_id, last_date
     delete_report_data(all_data)
+
+
+@pytest.fixture
+def empty_db():
+    create_tables(get_engine_from_settings())
+    clear_db()

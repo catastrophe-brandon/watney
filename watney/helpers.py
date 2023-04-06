@@ -8,7 +8,7 @@ from sqlmodel import select, desc
 
 from watney.db.session import get_session
 from watney.db.models import BrokenLinkReportData
-from watney.errors import DuplicateReportError
+from watney.errors import DuplicateReportError, NoReportDataError
 from watney.schema import (
     BrokenLink,
     BrokenLinkRepo,
@@ -191,6 +191,16 @@ def get_report_diff(
     broken links.
     :return:
     """
+    if new_id is None:
+        raise NoReportDataError
+
+    if prev_id is None:
+        cur_report = get_report_by_id(new_id)
+        newly_broken = []
+        for repo in cur_report.report:
+            newly_broken.extend(repo.broken_links)
+        return newly_broken, None
+
     existing_broken = []
     new_broken = []
     # get both reports
