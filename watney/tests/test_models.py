@@ -6,7 +6,12 @@ from watney.helpers import (
     report_exists,
     get_last_report_id_and_datestamp,
 )
-from watney.tests.test_fixtures import FAKE_REPORT_UUID, FAKE_REPORT_DATE, fake_report
+from watney.tests.test_fixtures import (
+    FAKE_REPORT_UUID,
+    FAKE_REPORT_DATE,
+    fake_report,
+    multiple_reports,
+)
 
 
 def test_report_exists(fake_report):

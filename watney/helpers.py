@@ -20,7 +20,9 @@ from watney.schema import (
 
 def report_exists(report_id: UUID) -> bool:
     results = get_session().exec(
-        select(BrokenLinkReportData).where(BrokenLinkReportData.report_id == report_id)
+        select(BrokenLinkReportData)
+        .where(BrokenLinkReportData.report_id == report_id)
+        .limit(1)
     )
     if results.one_or_none() is None:
         return False
