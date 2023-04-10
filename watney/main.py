@@ -14,6 +14,7 @@ from watney.helpers import (
     get_report_list as get_report_list_,
     get_last_two_reports,
     get_report_diff,
+    NotEnoughDataError,
 )
 from watney.schema import BrokenLinkReport, BrokenLinksResponse
 
@@ -67,21 +68,24 @@ async def get_report_list():
 def broken_links():
     try:
         prev_report_id, recent_report_id = get_last_two_reports()
-        new_broken_links, existing_broken_links = get_report_diff(
-            prev_report_id, recent_report_id
-        )
-    except NoReportDataError:
+    except NoReportDataError as err:
         raise HTTPException(
-            status_code=409, detail="Not enough report data available to analyze"
+            status_code=409,
+            detail=f"Not enough report data available to analyze ({err})",
         )
-    except TypeError:
+    except NotEnoughDataError as err:
         raise HTTPException(
-            status_code=409, detail="Not enough report data available to analyze"
+            status_code=409,
+            detail=f"Not enough report data available to analyze ({err})",
         )
 
+    new_broken_links, existing_broken_links = get_report_diff(
+        prev_report_id, recent_report_id
+    )
+
     return BrokenLinksResponse(
-        new_broken_links=new_broken_links,
-        existing_broken_links=existing_broken_links,
+        new_broken_links=new_broken_links if new_broken_links else [],
+        existing_broken_links=existing_broken_links if existing_broken_links else [],
         last_report_id=uuid.uuid4(),
         last_report_date=datetime.now(),
     )

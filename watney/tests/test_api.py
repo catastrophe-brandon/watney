@@ -1,8 +1,9 @@
 import datetime
 from uuid import UUID
 
+import pytest
 import requests
-from watney.tests.test_fixtures import empty_db, fake_report
+from watney.tests.test_fixtures import empty_db, fake_report, two_reports_one_empty
 from faker import Faker
 
 fake = Faker()
@@ -44,6 +45,20 @@ def report_data():
     }
 
 
+def fake_empty_report():
+    result = []
+    for i in range(0, MAX_REPOS):
+        url = fake.url()
+        result.append(
+            {
+                "repo_name": fake.domain_word(),
+                "repo_url": url,
+                "broken_links": [],
+            }
+        )
+    return result
+
+
 def test_report():
     """
     Basic request, post a report then get the data
@@ -81,9 +96,9 @@ def test_broken_links_not_enough_data(empty_db):
     assert response.status_code == 409
 
 
-def test_broken_links_no_prev_data(fake_report):
+def test_broken_links_no_prev_data(two_reports_one_empty):
     """
-    Test when there is no previous report data and we call /broken_links
+    Verify that when there is no previous report data all links are reported as new
     :return:
     """
     response = requests.get(BROKEN_LINKS_URL)
@@ -92,14 +107,9 @@ def test_broken_links_no_prev_data(fake_report):
     assert response.json()["new_broken_links"] is not None
 
 
-def test_get_report():
+def test_get_report(fake_report):
     # Get an existing report
-    headers = {"Content-type": "application/json"}
-    response = requests.post(REPORT_URL, headers=headers, json=report_data())
-    assert response.status_code in [201]
-    report_id = response.json()["report_id"]
-
-    response = requests.get(f"{REPORT_URL}/{report_id}")
+    response = requests.get(f"{REPORT_URL}/{fake_report}")
     assert response.status_code == 200
 
     # Request a non-existent report, expect 404
@@ -107,3 +117,14 @@ def test_get_report():
 
     response = requests.get(f"{REPORT_URL}/{uuid.uuid4()}")
     assert response.status_code == 404
+
+
+def test_broken_links_all_new_broken(two_reports_one_empty):
+    """
+    Get the diff between the two most recent reports.
+    :return:
+    """
+    response = requests.get(BROKEN_LINKS_URL)
+    assert response.status_code == 200
+    assert response.json()["existing_broken_links"] is None
+    assert len(response.json()["new_broken_links"]) is MAX_BROKEN_LINKS * MAX_REPOS

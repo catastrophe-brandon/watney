@@ -6,9 +6,9 @@ import uuid
 
 from sqlalchemy.orm.exc import ObjectDeletedError
 
-from watney.db.models import BrokenLinkReportData, create_tables
+from watney.db.models import BrokenLinkReportData, create_tables, BrokenLinkFileData
 from watney.db.session import get_session, get_engine_from_settings
-from watney.helpers import create_data, clear_db
+from watney.helpers import create_data, clear_db, delete_report_data
 from watney.schema import BrokenLink, BrokenLinkRepo
 
 from faker import Faker
@@ -16,7 +16,9 @@ from faker import Faker
 fake = Faker()
 
 FAKE_REPORT_DATE = datetime.datetime.fromisoformat("2023-03-14T14:15:34.726727")
+FAKE_EMPTY_REPORT_DATE = datetime.datetime.fromisoformat("2023-03-11T22:33:32.87")
 FAKE_REPORT_UUID = uuid.uuid4()
+FAKE_EMPTY_REPORT_UUID = uuid.uuid4()
 
 
 def create_fake_link_data(url) -> List[BrokenLink]:
@@ -43,9 +45,19 @@ def create_fake_repos() -> List[BrokenLinkRepo]:
     return result
 
 
-def create_fake_report(
-    report_id: uuid.UUID, report_ts: datetime
-) -> BrokenLinkReportData:
+def create_fake_empty_report(report_id: uuid.UUID, report_ts: datetime):
+    """
+    Create a report with no broken links
+    :param report_id:
+    :param report_ts:
+    :return:
+    """
+    with get_session() as session:
+        session.add(BrokenLinkReportData(report_id=report_id, date=report_ts))
+        session.commit()
+
+
+def create_fake_report(report_id: uuid.UUID, report_ts: datetime):
     """
     Models and persists fake report data to the db.
     :param report_id:
@@ -53,38 +65,19 @@ def create_fake_report(
     :return:
     """
     fake_repos = create_fake_repos()
-    blrd = None
-    report_data_list = []
     with get_session() as session:
-        # for each link in each repo we need to create a row
-        report_data = None
+        session.add(BrokenLinkReportData(report_id=report_id, date=report_ts))
         for fake_repo in fake_repos:
             for broken_link in fake_repo.broken_links:
-                broken_link_data = BrokenLink(
+                broken_link_data = BrokenLinkFileData(
+                    report_id=report_id,
+                    repo_name=fake_repo.repo_name,
+                    repo_url=fake_repo.repo_url,
                     file=broken_link.file,
                     url=broken_link.url,
                     status_code=broken_link.status_code,
                 )
-                last_report_data = report_data
-                report_data = create_data(
-                    report_id=report_id,
-                    report_date=report_ts,
-                    repo=fake_repo,
-                    link=broken_link_data,
-                )
-                if last_report_data == report_data:
-                    raise
-            blrd = report_data
-            report_data_list.append(report_data)
-            session.add(report_data)
-        session.commit()
-    return blrd
-
-
-def delete_report_data(broken_link_report_data: List[BrokenLinkReportData]):
-    with get_session() as session:
-        for blrd in broken_link_report_data:
-            session.delete(blrd)
+                session.add(broken_link_data)
         session.commit()
 
 
@@ -92,10 +85,31 @@ def delete_report_data(broken_link_report_data: List[BrokenLinkReportData]):
 def fake_report():
     create_tables(get_engine_from_settings())
     clear_db()
-    report_data = create_fake_report(FAKE_REPORT_UUID, FAKE_REPORT_DATE)
+    create_fake_report(FAKE_REPORT_UUID, FAKE_REPORT_DATE)
     yield FAKE_REPORT_UUID
     try:
-        delete_report_data([report_data])
+        pass
+    #        delete_report_data(FAKE_REPORT_UUID)
+    except ObjectDeletedError:
+        pass
+
+
+@pytest.fixture
+def two_reports_one_empty():
+    """
+    Creates two reports:
+    - One has zero broken links
+    - The second has a few broken links
+    :return:
+    """
+    create_tables(get_engine_from_settings())
+    clear_db()
+    create_fake_empty_report(FAKE_EMPTY_REPORT_UUID, FAKE_EMPTY_REPORT_DATE)
+    create_fake_report(FAKE_REPORT_UUID, FAKE_REPORT_DATE)
+    yield FAKE_EMPTY_REPORT_UUID, FAKE_REPORT_UUID
+    try:
+        delete_report_data(FAKE_EMPTY_REPORT_UUID)
+        delete_report_data(FAKE_REPORT_UUID)
     except ObjectDeletedError:
         pass
 
@@ -108,9 +122,11 @@ def multiple_reports():
     for i in range(0, 100):
         last_id = uuid.uuid4()
         last_date = datetime.datetime.utcnow()
-        all_data.append(create_fake_report(last_id, last_date))
+        create_fake_report(last_id, last_date)
+        all_data.append(last_id)
     yield last_id, last_date
-    delete_report_data(all_data)
+    for data in all_data:
+        delete_report_data(data)
 
 
 @pytest.fixture

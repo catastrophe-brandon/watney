@@ -7,7 +7,7 @@ from fastapi.responses import FileResponse
 from sqlmodel import select, desc
 
 from watney.db.session import get_session
-from watney.db.models import BrokenLinkReportData
+from watney.db.models import BrokenLinkReportData, BrokenLinkFileData
 from watney.errors import DuplicateReportError, NoReportDataError
 from watney.schema import (
     BrokenLink,
@@ -31,7 +31,9 @@ def report_exists(report_id: UUID) -> bool:
 
 def report_exists_for_date(datestamp: datetime) -> bool:
     results = get_session().exec(
-        select(BrokenLinkReportData).where(BrokenLinkReportData.date == datestamp)
+        select(BrokenLinkReportData)
+        .where(BrokenLinkReportData.date == datestamp)
+        .limit(1)
     )
     if results.first() is None:
         return False
@@ -60,7 +62,7 @@ def get_report_list() -> ReportList:
 
 
 def create_data(
-    report_id, report_date: datetime, repo: BrokenLinkRepo, link: BrokenLink
+    report_id, report_date: datetime, repo: BrokenLinkRepo, link: Optional[BrokenLink]
 ) -> BrokenLinkReportData:
     """
     Take the input data and marshall it into a table row.
@@ -72,12 +74,12 @@ def create_data(
     """
     return BrokenLinkReportData(
         report_id=report_id,
-        repo_name=repo.repo_name,
-        repo_url=repo.repo_url,
+        # repo_name=repo.repo_name,
+        # repo_url=repo.repo_url,
         date=report_date,
-        file=link.file,
-        url=link.url,
-        status_code=link.status_code,
+        # file=link.file if link else None,
+        # url=link.url if link else None,
+        # status_code=link.status_code if link else None,
     )
 
 
@@ -95,15 +97,29 @@ def persist(broken_link_report: BrokenLinkReport):
     # otherwise, persist the data into the table
     report_id = uuid4()
     result = []
+
+    # Create the report row
+    blrd = BrokenLinkReportData(
+        report_id=report_id, date=broken_link_report.report_date
+    )
+    # Create the data rows
     for repo in broken_link_report.report:
         for link in repo.broken_links:
             result.append(
-                create_data(report_id, broken_link_report.report_date, repo, link)
+                BrokenLinkFileData(
+                    report_id=report_id,
+                    repo_name=repo.repo_name,
+                    repo_url=repo.repo_url,
+                    file=link.file,
+                    url=link.url,
+                    status_code=link.status_code,
+                )
             )
 
-    session = get_session()
-    session.add_all(result)
-    session.commit()
+    with get_session() as session:
+        session.add(blrd)
+        session.add_all(result)
+        session.commit()
     return report_id
 
 
@@ -116,42 +132,57 @@ def get_report_by_id(id_: UUID) -> Optional[BrokenLinkReport]:
     query = (
         select(BrokenLinkReportData)
         .where(BrokenLinkReportData.report_id == str(id_))
-        .order_by(BrokenLinkReportData.repo_name)
+        .order_by(BrokenLinkReportData.date)
     )
 
     with get_session() as session:
         result = session.exec(query)
         report_data = result.fetchall()
+        if len(report_data) == 0:
+            return None
+        report_id = id_
+        report_date = report_data[0].date.isoformat()
 
-    if len(report_data) == 0:
-        return None
-    # report_id and date are duplicated across records, rip them out of the first record
-    report_id = str(report_data[0].report_id)
-    report_date = report_data[0].date.isoformat()
-    # Build a list of all the repo names
-    repo_list = [repo.repo_name for repo in report_data]
-    broken_link_repos = []
-    for repo_name in repo_list:
-        # Get all the rows matching the repo name
-        rows_for_repo = [row for row in report_data if row.repo_name == repo_name]
-        repo_url = rows_for_repo[0].repo_url
-        broken_links = []
-        for row in rows_for_repo:
-            broken_links.append(
-                BrokenLink(
-                    file=row.file, url=repo_url + row.file, status_code=row.status_code
+        query = (
+            select(BrokenLinkFileData)
+            .where(BrokenLinkFileData.report_id == str(id_))
+            .order_by(BrokenLinkFileData.repo_name)
+        )
+        result = session.exec(query)
+        row_data = result.fetchall()
+        if len(row_data) == 0:
+            # Report exists, but there are no broken links
+            return BrokenLinkReport(
+                report_date=report_date, report_id=report_id, report=[]
+            )
+
+        # Build a list of all the repo names
+        repo_list = [repo.repo_name for repo in row_data]
+        broken_link_repos = []
+
+        for repo_name in repo_list:
+            # Get all the rows matching the repo name
+            rows_for_repo = [row for row in row_data if row.repo_name == repo_name]
+            repo_url = rows_for_repo[0].repo_url
+            broken_links = []
+            for row in rows_for_repo:
+                broken_links.append(
+                    BrokenLink(
+                        file=row.file,
+                        url=repo_url + row.file,
+                        status_code=row.status_code,
+                    )
+                )
+            broken_link_repos.append(
+                BrokenLinkRepo(
+                    repo_name=repo_name, repo_url=repo_url, broken_links=broken_links
                 )
             )
-        broken_link_repos.append(
-            BrokenLinkRepo(
-                repo_name=repo_name, repo_url=repo_url, broken_links=broken_links
-            )
+        return BrokenLinkReport(
+            report_date=report_date,
+            report_id=report_id,
+            report=broken_link_repos,
         )
-    return BrokenLinkReport(
-        report_date=report_date,
-        report_id=report_id,
-        report=broken_link_repos,
-    )
 
 
 def get_csv_report_by_id(report_id) -> FileResponse:
@@ -178,7 +209,7 @@ def get_last_two_reports() -> Optional[Tuple[UUID, UUID]]:
     result = get_session().exec(query)
     last_two = result.fetchall()
     if len(last_two) < 2:
-        return None
+        raise NotEnoughDataError
 
     return last_two[1][0], last_two[0][0]
 
@@ -192,9 +223,11 @@ def get_report_diff(
     :return:
     """
     if new_id is None:
+        # No report data in the database
         raise NoReportDataError
 
     if prev_id is None:
+        # no previous report data exists
         cur_report = get_report_by_id(new_id)
         newly_broken = []
         for repo in cur_report.report:
@@ -203,8 +236,16 @@ def get_report_diff(
 
     existing_broken = []
     new_broken = []
-    # get both reports
+
     old_report = get_report_by_id(prev_id)
+    if len(old_report.report) == 0:
+        # No broken links in old report, return only new broken links
+        cur_report = get_report_by_id(new_id)
+        newly_broken = []
+        for repo in cur_report.report:
+            newly_broken.extend(repo.broken_links)
+        return newly_broken, None
+
     new_report = get_report_by_id(new_id)
 
     # walk through the old report row-by-row to compare the broken links with the new report
@@ -229,4 +270,28 @@ def clear_db():
         result = get_session().exec(query)
         for row in result:
             session.delete(row)
+        query = select(BrokenLinkFileData)
+        result = get_session().exec(query)
+        for row in result:
+            session.delete(row)
+        session.commit()
+
+
+def delete_report_data(report_id: UUID):
+    """
+    Delete all data for the report with the matching UUID
+    :param report_id:
+    :return:
+    """
+    with get_session() as session:
+        query = select(BrokenLinkFileData).where(
+            BrokenLinkFileData.report_id == report_id
+        )
+        query_result = session.exec(query)
+        for row in query_result:
+            session.delete(row)
+        query = select(BrokenLinkReportData).where(
+            BrokenLinkReportData.report_id == report_id
+        )
+        session.delete(session.exec(query).first())
         session.commit()
