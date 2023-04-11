@@ -216,6 +216,14 @@ def get_last_two_reports() -> Optional[Tuple[UUID, UUID]]:
     return last_two[1][0], last_two[0][0]
 
 
+def broken_links_from_report(report_id: UUID) -> List[BrokenLinkFileData]:
+    with get_session() as session:
+        query = select(BrokenLinkFileData).where(
+            BrokenLinkFileData.report_id == report_id
+        )
+        return session.exec(query).fetchall()
+
+
 def get_report_diff(
     prev_id: UUID, new_id: UUID
 ) -> (List[BrokenLink], List[BrokenLink]):
@@ -229,24 +237,13 @@ def get_report_diff(
         raise NoReportDataError
 
     if prev_id is None:
-        # no previous report data exists
-        cur_report = get_report_by_id(new_id)
-        newly_broken = []
-        for repo in cur_report.report:
-            newly_broken.extend(repo.broken_links)
-        return newly_broken, None
+        return broken_links_from_report(new_id), None
 
     existing_broken = []
 
     old_report = get_report_by_id(prev_id)
     if len(old_report.report) == 0:
-        # No broken links in old report, return only new broken links
-        with get_session() as session:
-            query = select(BrokenLinkFileData).where(
-                BrokenLinkFileData.report_id == new_id
-            )
-            results = session.exec(query).fetchall()
-            return None, results
+        return None, broken_links_from_report(new_id)
 
     with get_session() as session:
         prev_query = select(BrokenLinkFileData).where(
