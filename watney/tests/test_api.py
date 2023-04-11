@@ -150,7 +150,9 @@ def test_newly_broken_links(fake_report):
     assert len(response.json()["new_broken_links"]) == 0
 
     # Third report, add 1 broken link
-    # TODO: create report with additional broken link
+    third_uuid = uuid.uuid4()
+    third_date = "2023-04-15T14:15:34.726727"
+    clone_report(fake_report, third_uuid, third_date, add_new_links=True)
     response = requests.get(BROKEN_LINKS_URL)
     assert response.status_code == 200, str(response.content)
     assert len(response.json()["existing_broken_links"]) == MAX_BROKEN_LINKS * MAX_REPOS

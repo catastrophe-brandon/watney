@@ -1,5 +1,6 @@
 import copy
 import json
+from random import randint
 from uuid import UUID, uuid4
 from datetime import datetime
 from typing import Tuple, List, Optional
@@ -17,6 +18,10 @@ from watney.schema import (
     ReportList,
     ReportSummary,
 )
+
+from faker import Faker
+
+fake = Faker()
 
 
 def report_exists(report_id: UUID) -> bool:
@@ -158,22 +163,23 @@ def get_report_by_id(id_: UUID) -> Optional[BrokenLinkReport]:
             )
 
         # Build a list of all the repo names
-        repo_list = [repo.repo_name for repo in row_data]
-        broken_link_repos = []
+        repo_list = []
+        query = (
+            select(BrokenLinkFileData.repo_name, BrokenLinkFileData.repo_url)
+            .where(BrokenLinkFileData.report_id == report_id)
+            .distinct()
+        )
+        repo_data = session.exec(query).fetchall()
 
-        for repo_name in repo_list:
-            # Get all the rows matching the repo name
-            rows_for_repo = [row for row in row_data if row.repo_name == repo_name]
-            repo_url = rows_for_repo[0].repo_url
-            broken_links = []
-            for row in rows_for_repo:
-                broken_links.append(
-                    BrokenLink(
-                        file=row.file,
-                        url=repo_url + row.file,
-                        status_code=row.status_code,
-                    )
-                )
+        broken_link_repos = []
+        for repo_name, repo_url in repo_data:
+            query = (
+                select(BrokenLinkFileData)
+                .where(BrokenLinkFileData.report_id == report_id)
+                .where(BrokenLinkFileData.repo_name == repo_name)
+            )
+            broken_links = session.exec(query).fetchall()
+
             broken_link_repos.append(
                 BrokenLinkRepo(
                     repo_name=repo_name, repo_url=repo_url, broken_links=broken_links
@@ -244,7 +250,7 @@ def get_report_diff(
         newly_broken = []
         for repo in cur_report.report:
             newly_broken.extend(repo.broken_links)
-        return newly_broken, None
+        return None, newly_broken
 
     with get_session() as session:
         prev_query = select(BrokenLinkFileData).where(
@@ -315,13 +321,19 @@ def delete_report_data(report_id: UUID):
         session.commit()
 
 
-def clone_report(existing_report: UUID, report_id: UUID, timestamp: str):
+def clone_report(
+    existing_report: UUID,
+    report_id: UUID,
+    timestamp: str,
+    add_new_links=False,
+    num_new_links=1,
+):
     valid_timestamp = datetime.fromisoformat(timestamp)
     with get_session() as session:
         query = select(BrokenLinkFileData).where(
             BrokenLinkFileData.report_id == existing_report
         )
-        query_result = session.exec(query)
+        query_result = session.exec(query).fetchall()
         session.add(BrokenLinkReportData(report_id=report_id, date=valid_timestamp))
         for row in query_result:
             session.add(
@@ -334,4 +346,17 @@ def clone_report(existing_report: UUID, report_id: UUID, timestamp: str):
                     status_code=row.status_code,
                 )
             )
+        if add_new_links:
+            random_row = query_result[randint(0, len(query_result) - 1)]
+            for i in range(0, num_new_links):
+                session.add(
+                    BrokenLinkFileData(
+                        report_id=report_id,
+                        file=fake.file_path(),
+                        url=random_row.url,
+                        repo_name=random_row.repo_name,
+                        repo_url=random_row.repo_url,
+                        status_code=random_row.status_code,
+                    )
+                )
         session.commit()
