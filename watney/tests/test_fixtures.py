@@ -19,11 +19,13 @@ FAKE_REPORT_DATE = datetime.datetime.fromisoformat("2023-03-14T14:15:34.726727")
 FAKE_EMPTY_REPORT_DATE = datetime.datetime.fromisoformat("2023-03-11T22:33:32.87")
 FAKE_REPORT_UUID = uuid.uuid4()
 FAKE_EMPTY_REPORT_UUID = uuid.uuid4()
+MAX_BROKEN_LINKS = 20
+MAX_REPOS = 20
 
 
 def create_fake_link_data(url) -> List[BrokenLink]:
     result = []
-    for i in range(0, 10):
+    for i in range(0, MAX_BROKEN_LINKS):
         file_path = fake.file_path()
         result.append(BrokenLink(file=file_path, url=url + file_path, status_code=404))
     return result
@@ -40,7 +42,7 @@ def create_fake_repo() -> BrokenLinkRepo:
 
 def create_fake_repos() -> List[BrokenLinkRepo]:
     result = []
-    for i in range(0, 20):
+    for i in range(0, MAX_REPOS):
         result.append(create_fake_repo())
     return result
 

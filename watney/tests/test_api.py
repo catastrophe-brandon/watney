@@ -9,7 +9,7 @@ from watney.tests.test_fixtures import (
     empty_db,
     fake_report,
     two_reports_one_empty,
-    new_report_empty,
+    new_report_empty, MAX_BROKEN_LINKS, MAX_REPOS
 )
 from faker import Faker
 
@@ -20,8 +20,6 @@ TEST_HOST = "localhost:8000"
 URL_ANCHOR = f"{TEST_PROTO}://{TEST_HOST}"
 REPORT_URL = f"{URL_ANCHOR}/report"
 BROKEN_LINKS_URL = f"{URL_ANCHOR}/broken_links"
-MAX_BROKEN_LINKS = 20
-MAX_REPOS = 20
 
 
 def create_broken_links(url: str) -> list:
@@ -177,4 +175,4 @@ def test_broken_links_all_new_broken(two_reports_one_empty):
     response = requests.get(BROKEN_LINKS_URL)
     assert response.status_code == 200
     assert len(response.json()["existing_broken_links"]) == 0
-    assert len(response.json()["new_broken_links"]) is MAX_BROKEN_LINKS * MAX_REPOS
+    assert len(response.json()["new_broken_links"]) == MAX_BROKEN_LINKS * MAX_REPOS

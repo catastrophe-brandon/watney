@@ -236,7 +236,6 @@ def get_report_diff(
         return newly_broken, None
 
     existing_broken = []
-    new_broken = []
 
     old_report = get_report_by_id(prev_id)
     if len(old_report.report) == 0:
@@ -257,12 +256,13 @@ def get_report_diff(
         )
         new_results = session.exec(new_query).fetchall()
 
-        # Find all in prev_results AND new_results, these are the existing_broken
+        # Find all matches in prev_results AND new_results, these are the existing_broken
         for prev_row in prev_results:
             for new_row in new_results:
                 if (
                     prev_row.file == new_row.file
                     and prev_row.repo_name == new_row.repo_name
+                    and prev_row.repo_url == new_row.repo_url
                 ):
                     existing_broken.append(new_row)
                     break
