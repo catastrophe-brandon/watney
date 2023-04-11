@@ -9,7 +9,9 @@ from watney.tests.test_fixtures import (
     empty_db,
     fake_report,
     two_reports_one_empty,
-    new_report_empty, MAX_BROKEN_LINKS, MAX_REPOS
+    new_report_empty,
+    MAX_BROKEN_LINKS,
+    MAX_REPOS,
 )
 from faker import Faker
 
