@@ -80,12 +80,7 @@ def create_data(
     """
     return BrokenLinkReportData(
         report_id=report_id,
-        # repo_name=repo.repo_name,
-        # repo_url=repo.repo_url,
         date=report_date,
-        # file=link.file if link else None,
-        # url=link.url if link else None,
-        # status_code=link.status_code if link else None,
     )
 
 
@@ -246,11 +241,12 @@ def get_report_diff(
     old_report = get_report_by_id(prev_id)
     if len(old_report.report) == 0:
         # No broken links in old report, return only new broken links
-        cur_report = get_report_by_id(new_id)
-        newly_broken = []
-        for repo in cur_report.report:
-            newly_broken.extend(repo.broken_links)
-        return None, newly_broken
+        with get_session() as session:
+            query = select(BrokenLinkFileData).where(
+                BrokenLinkFileData.report_id == new_id
+            )
+            results = session.exec(query).fetchall()
+            return None, results
 
     with get_session() as session:
         prev_query = select(BrokenLinkFileData).where(
