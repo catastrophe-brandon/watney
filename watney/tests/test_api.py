@@ -3,7 +3,14 @@ from uuid import UUID
 
 import pytest
 import requests
-from watney.tests.test_fixtures import empty_db, fake_report, two_reports_one_empty
+
+from watney.helpers import clone_report
+from watney.tests.test_fixtures import (
+    empty_db,
+    fake_report,
+    two_reports_one_empty,
+    new_report_empty,
+)
 from faker import Faker
 
 fake = Faker()
@@ -103,8 +110,51 @@ def test_broken_links_no_prev_data(two_reports_one_empty):
     """
     response = requests.get(BROKEN_LINKS_URL)
     assert response.status_code == 200, str(response.content)
+    assert len(response.json()["existing_broken_links"]) == 0
+    assert len(response.json()["new_broken_links"]) == MAX_BROKEN_LINKS * MAX_REPOS
+
+
+def test_broken_links_no_new_data(new_report_empty):
+    """
+    Verify that when the new report contains no links every broken
+    link is considered "fixed"
+    :param new_report_empty:
+    :return:
+    """
+    response = requests.get(BROKEN_LINKS_URL)
+    assert response.status_code == 200, str(response.content)
     assert not response.json()["existing_broken_links"]
-    assert response.json()["new_broken_links"] is not None
+    assert not response.json()["new_broken_links"]
+
+
+def test_newly_broken_links(fake_report):
+    """
+    Submit two reports where the broken links are the same.
+    On the second report everything should be considered "existing".
+    Submit a third report with one more broken link.
+    Confirm the link is counted as "new"
+    """
+    import uuid
+
+    new_uuid = uuid.uuid4()
+    new_ts = "2023-03-14T14:15:34.726727"
+    clone_report(fake_report, new_uuid, new_ts)
+
+    response = requests.get(f"{REPORT_URL}/{new_uuid}")
+    assert response.status_code == 200, str(response.content)
+
+    # Two identical reports, all links are existing broken links
+    response = requests.get(BROKEN_LINKS_URL)
+    assert response.status_code == 200, str(response.content)
+    assert len(response.json()["existing_broken_links"]) == MAX_BROKEN_LINKS * MAX_REPOS
+    assert len(response.json()["new_broken_links"]) == 0
+
+    # Third report, add 1 broken link
+    # TODO: create report with additional broken link
+    response = requests.get(BROKEN_LINKS_URL)
+    assert response.status_code == 200, str(response.content)
+    assert len(response.json()["existing_broken_links"]) == MAX_BROKEN_LINKS * MAX_REPOS
+    assert len(response.json()["new_broken_links"]) == 1
 
 
 def test_get_report(fake_report):
@@ -126,5 +176,5 @@ def test_broken_links_all_new_broken(two_reports_one_empty):
     """
     response = requests.get(BROKEN_LINKS_URL)
     assert response.status_code == 200
-    assert response.json()["existing_broken_links"] is None
+    assert len(response.json()["existing_broken_links"]) == 0
     assert len(response.json()["new_broken_links"]) is MAX_BROKEN_LINKS * MAX_REPOS

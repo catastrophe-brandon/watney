@@ -79,7 +79,7 @@ def broken_links():
             detail=f"Not enough report data available to analyze ({err})",
         )
 
-    new_broken_links, existing_broken_links = get_report_diff(
+    existing_broken_links, new_broken_links = get_report_diff(
         prev_report_id, recent_report_id
     )
 

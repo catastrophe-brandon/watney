@@ -115,6 +115,30 @@ def two_reports_one_empty():
 
 
 @pytest.fixture
+def new_report_empty():
+    """
+    Creates two reports
+    - Previous report has broken links
+    - The new report has no broken links
+    :return:
+    """
+    create_tables(get_engine_from_settings())
+    clear_db()
+    prev_report_uuid = uuid.uuid4()
+    prev_report_ts = "2023-03-14T14:15:34.726727"
+    new_empty_report_uuid = uuid.uuid4()
+    new_empty_report_ts = "2023-03-20T14:20:38.23"
+    create_fake_report(prev_report_uuid, prev_report_ts)
+    create_fake_empty_report(new_empty_report_uuid, new_empty_report_ts)
+    yield prev_report_uuid, new_empty_report_uuid
+    try:
+        delete_report_data(prev_report_uuid)
+        delete_report_data(new_empty_report_uuid)
+    except ObjectDeletedError:
+        pass
+
+
+@pytest.fixture
 def multiple_reports():
     last_id = None
     last_date = None

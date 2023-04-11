@@ -1,3 +1,4 @@
+import copy
 import json
 from uuid import UUID, uuid4
 from datetime import datetime
@@ -246,18 +247,35 @@ def get_report_diff(
             newly_broken.extend(repo.broken_links)
         return newly_broken, None
 
-    new_report = get_report_by_id(new_id)
+    with get_session() as session:
+        prev_query = select(BrokenLinkFileData).where(
+            BrokenLinkFileData.report_id == prev_id
+        )
+        prev_results = session.exec(prev_query).fetchall()
+        new_query = select(BrokenLinkFileData).where(
+            BrokenLinkFileData.report_id == new_id
+        )
+        new_results = session.exec(new_query).fetchall()
 
-    # walk through the old report row-by-row to compare the broken links with the new report
-    for old_repo in old_report.report:
-        for new_repo in new_report.report:
-            # If repo names match, search for the link in the repo record
-            if new_repo.repo_name == old_repo.repo_name:
+        # Find all in prev_results AND new_results, these are the existing_broken
+        for prev_row in prev_results:
+            for new_row in new_results:
+                if (
+                    prev_row.file == new_row.file
+                    and prev_row.repo_name == new_row.repo_name
+                ):
+                    existing_broken.append(new_row)
+                    break
+
+        # Newly broken = all_broken - existing_broken
+        newly_broken = copy.deepcopy(new_results)
+        for row in existing_broken:
+            try:
+                newly_broken.remove(row)
+            except ValueError:
                 pass
-                # if the link exists in the new report, add it to the list of known/existing broken
-                # if new_repo.
-                # if the link does not exist in the broken report, it was probably fixed recently
-    return existing_broken, new_broken
+
+    return existing_broken, newly_broken
 
 
 def clear_db():
@@ -294,4 +312,26 @@ def delete_report_data(report_id: UUID):
             BrokenLinkReportData.report_id == report_id
         )
         session.delete(session.exec(query).first())
+        session.commit()
+
+
+def clone_report(existing_report: UUID, report_id: UUID, timestamp: str):
+    valid_timestamp = datetime.fromisoformat(timestamp)
+    with get_session() as session:
+        query = select(BrokenLinkFileData).where(
+            BrokenLinkFileData.report_id == existing_report
+        )
+        query_result = session.exec(query)
+        session.add(BrokenLinkReportData(report_id=report_id, date=valid_timestamp))
+        for row in query_result:
+            session.add(
+                BrokenLinkFileData(
+                    report_id=report_id,
+                    file=row.file,
+                    url=row.url,
+                    repo_name=row.repo_name,
+                    repo_url=row.repo_url,
+                    status_code=row.status_code,
+                )
+            )
         session.commit()
