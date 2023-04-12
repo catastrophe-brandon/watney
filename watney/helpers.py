@@ -328,28 +328,39 @@ def clone_report(
         )
         query_result = session.exec(query).fetchall()
         session.add(BrokenLinkReportData(report_id=report_id, date=valid_timestamp))
+        total_expected = len(query_result)
+        count = 0
         for row in query_result:
-            session.add(
-                BrokenLinkFileData(
-                    report_id=report_id,
-                    file=row.file,
-                    url=row.url,
-                    repo_name=row.repo_name,
-                    repo_url=row.repo_url,
-                    status_code=row.status_code,
-                )
-            )
-        if add_new_links:
-            random_row = query_result[randint(0, len(query_result) - 1)]
-            for i in range(0, num_new_links):
+            if (
+                add_new_links
+                and num_new_links < 0
+                and count >= total_expected + num_new_links
+            ):
+                break
+            else:
                 session.add(
                     BrokenLinkFileData(
                         report_id=report_id,
-                        file=fake.file_path(),
-                        url=random_row.url,
-                        repo_name=random_row.repo_name,
-                        repo_url=random_row.repo_url,
-                        status_code=random_row.status_code,
+                        file=row.file,
+                        url=row.url,
+                        repo_name=row.repo_name,
+                        repo_url=row.repo_url,
+                        status_code=row.status_code,
                     )
                 )
+                count += 1
+        if add_new_links:
+            if num_new_links > 0:
+                random_row = query_result[randint(0, len(query_result) - 1)]
+                for i in range(0, num_new_links):
+                    session.add(
+                        BrokenLinkFileData(
+                            report_id=report_id,
+                            file=fake.file_path(),
+                            url=random_row.url,
+                            repo_name=random_row.repo_name,
+                            repo_url=random_row.repo_url,
+                            status_code=random_row.status_code,
+                        )
+                    )
         session.commit()

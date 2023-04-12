@@ -159,6 +159,26 @@ def test_newly_broken_links(fake_report):
     assert len(response.json()["new_broken_links"]) == 1
 
 
+def test_newly_fixed_links(fake_report):
+    """
+    In this scenario, no new links have been broken, but some have been fixed.
+    :return:
+    """
+    import uuid
+
+    new_date = "2023-04-15T14:15:34.726727"
+    clone_report(
+        fake_report, uuid.uuid4(), new_date, add_new_links=True, num_new_links=-1
+    )
+    response = requests.get(BROKEN_LINKS_URL)
+    assert response.status_code == 200, str(response.content)
+    assert (
+        len(response.json()["existing_broken_links"])
+        == MAX_BROKEN_LINKS * MAX_REPOS - 1
+    )
+    assert len(response.json()["new_broken_links"]) == 0
+
+
 def test_get_report(fake_report):
     # Get an existing report
     response = requests.get(f"{REPORT_URL}/{fake_report}")
