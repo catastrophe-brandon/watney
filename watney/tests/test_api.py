@@ -21,7 +21,7 @@ TEST_PROTO = "http"
 TEST_HOST = "localhost:8000"
 URL_ANCHOR = f"{TEST_PROTO}://{TEST_HOST}"
 REPORT_URL = f"{URL_ANCHOR}/report"
-BROKEN_LINKS_URL = f"{URL_ANCHOR}/broken_links"
+BROKEN_LINKS_URL = f"{URL_ANCHOR}/broken-links"
 
 
 def create_broken_links(url: str) -> list:

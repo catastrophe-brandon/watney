@@ -3,6 +3,7 @@ from datetime import datetime
 
 from fastapi import HTTPException
 from fastapi import FastAPI
+from starlette.responses import FileResponse
 
 from watney.db.session import get_engine_from_settings
 from watney.db.models import create_tables
@@ -59,13 +60,13 @@ def get_report(report_id, csv=False):
     return result
 
 
-@app.get("/report_summary")
+@app.get("/report-summary")
 async def get_report_list():
     return get_report_list_()
 
 
-@app.get("/broken_links")
-def broken_links():
+@app.get("/broken-links")
+def broken_links(csv: bool = False):
     try:
         prev_report_id, recent_report_id = get_last_two_reports()
     except NoReportDataError as err:
@@ -83,9 +84,34 @@ def broken_links():
         prev_report_id, recent_report_id
     )
 
-    return BrokenLinksResponse(
-        new_broken_links=new_broken_links if new_broken_links else [],
-        existing_broken_links=existing_broken_links if existing_broken_links else [],
-        last_report_id=uuid.uuid4(),
-        last_report_date=datetime.now(),
-    )
+    if csv:
+        import csv
+
+        file_path = "/tmp/export.csv"
+        with open(file_path, "w", newline="") as csvfile:
+            data_writer = csv.writer(
+                csvfile, delimiter=" ", quotechar="|", quoting=csv.QUOTE_MINIMAL
+            )
+            # headers
+            data_writer.writerow(
+                ["file path", "full url", "status code", "new or existing"]
+            )
+            # data
+            for link in existing_broken_links:
+                data_writer.writerow(
+                    [link.file, link.url, link.status_code, "existing/known"]
+                )
+            for link in new_broken_links:
+                data_writer.writerow([link.file, link.url, link.status_code, "new"])
+        response = FileResponse(file_path, media_type="text/csv")
+        response.headers["Content-Disposition"] = "attachment; filename=export.csv"
+        return response
+    else:
+        return BrokenLinksResponse(
+            new_broken_links=new_broken_links if new_broken_links else [],
+            existing_broken_links=existing_broken_links
+            if existing_broken_links
+            else [],
+            last_report_id=uuid.uuid4(),
+            last_report_date=datetime.now(),
+        )
