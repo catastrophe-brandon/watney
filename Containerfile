@@ -1,4 +1,4 @@
-FROM python:3.1
+FROM python:3.11
 
 RUN pip install --no-cache-dir --upgrade pip
 RUN pip install --no-cache-dir -U pip setuptools setuptools_scm wheel
