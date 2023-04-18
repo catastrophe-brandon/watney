@@ -16,7 +16,8 @@ from watney.schema import (
     BrokenLinkRepo,
     BrokenLinkReport,
     ReportList,
-    ReportSummary, BrokenLinkDetails,
+    ReportSummary,
+    BrokenLinkDetails,
 )
 
 from faker import Faker
@@ -67,9 +68,7 @@ def get_report_list() -> ReportList:
     return ReportList(reports=summary_items)
 
 
-def create_data(
-    report_id, report_date: datetime
-) -> BrokenLinkReportData:
+def create_data(report_id, report_date: datetime) -> BrokenLinkReportData:
     """
     Take the input data and marshall it into a table row.
     :param report_date:

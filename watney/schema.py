@@ -39,6 +39,7 @@ class BrokenLinkDetails(BaseModel):
     """
     Broken link full details for use in the response to /broken-links
     """
+
     file: str
     url: str
     status_code: int
@@ -65,5 +66,3 @@ class ReportSummary(BaseModel):
 
 class ReportList(BaseModel):
     reports: List[ReportSummary]
-
-
