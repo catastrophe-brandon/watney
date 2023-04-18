@@ -94,15 +94,38 @@ def broken_links(csv: bool = False):
             )
             # headers
             data_writer.writerow(
-                ["file path", "full url", "status code", "new or existing"]
+                [
+                    "repo name",
+                    "repo url",
+                    "file path",
+                    "full url",
+                    "status code",
+                    "new or existing",
+                ]
             )
             # data
             for link in existing_broken_links:
                 data_writer.writerow(
-                    [link.file, link.url, link.status_code, "existing/known"]
+                    [
+                        link.repo_name,
+                        link.repo_url,
+                        link.file,
+                        link.url,
+                        link.status_code,
+                        "existing/known",
+                    ]
                 )
             for link in new_broken_links:
-                data_writer.writerow([link.file, link.url, link.status_code, "new"])
+                data_writer.writerow(
+                    [
+                        link.repo_name,
+                        link.repo_url,
+                        link.file,
+                        link.url,
+                        link.status_code,
+                        "new",
+                    ]
+                )
         response = FileResponse(file_path, media_type="text/csv")
         response.headers["Content-Disposition"] = "attachment; filename=export.csv"
         return response

@@ -35,14 +35,26 @@ class BrokenLinkReport(BaseModel):
     report_id: Optional[UUID]
 
 
+class BrokenLinkDetails(BaseModel):
+    """
+    Broken link full details for use in the response to /broken-links
+    """
+
+    file: str
+    url: str
+    status_code: int
+    repo_name: str
+    repo_url: str
+
+
 class BrokenLinksResponse(BaseModel):
     """
     A report that includes data about newly-broken links, links that were already known to be
     broken, and details about the most recently reported broken link data.
     """
 
-    new_broken_links: List[BrokenLink]
-    existing_broken_links: List[BrokenLink]
+    new_broken_links: List[BrokenLinkDetails]
+    existing_broken_links: List[BrokenLinkDetails]
     last_report_id: UUID
     last_report_date: datetime
 

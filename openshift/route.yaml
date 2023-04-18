@@ -1,0 +1,20 @@
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  labels:
+    app: watney
+    app.kubernetes.io/component: watney
+    app.kubernetes.io/instance: watney
+    app.kubernetes.io/name: watney
+    app.kubernetes.io/part-of: watney
+  name: watney
+  namespace: insights-qe-dev
+spec:
+  host: watney.apps.ocp4.prod.psi.redhat.com
+  port:
+    targetPort: 8080-tcp
+  to:
+    kind: Service
+    name: watney
+    weight: 100
+  wildcardPolicy: None
