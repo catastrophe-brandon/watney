@@ -20,4 +20,4 @@ def get_session() -> Session:
     return Session(get_engine_from_settings())
 
 
-__all__ = ["get_session"]
+__all__ = ["get_session", "get_engine_from_settings"]

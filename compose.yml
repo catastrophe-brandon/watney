@@ -1,0 +1,22 @@
+version: '1'
+services:
+  backend:
+    environment:
+      POSTGRESQL_HOST: postgres
+      POSTGRESQL_DATABASE: watney
+      POSTGRESQL_USER: watney
+      POSTGRESQL_PASSWORD: watney
+    build:
+      dockerfile: Containerfile
+    image: watney:latest
+    ports:
+      - "8080:80"
+    depends_on:
+      - postgres
+  postgres:
+    hostname: postgres
+    environment:
+      POSTGRES_USER: watney
+      POSTGRES_PASSWORD: watney
+      POSTGRES_DB: watney
+    image: postgres:latest
