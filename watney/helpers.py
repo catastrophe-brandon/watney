@@ -16,7 +16,7 @@ from watney.schema import (
     BrokenLinkRepo,
     BrokenLinkReport,
     ReportList,
-    ReportSummary,
+    ReportSummary, BrokenLinkDetails,
 )
 
 from faker import Faker
@@ -68,7 +68,7 @@ def get_report_list() -> ReportList:
 
 
 def create_data(
-    report_id, report_date: datetime, repo: BrokenLinkRepo, link: Optional[BrokenLink]
+    report_id, report_date: datetime
 ) -> BrokenLinkReportData:
     """
     Take the input data and marshall it into a table row.
@@ -226,7 +226,7 @@ def broken_links_from_report(report_id: UUID) -> List[BrokenLinkFileData]:
 
 def get_report_diff(
     prev_id: UUID, new_id: UUID
-) -> (List[BrokenLink], List[BrokenLink]):
+) -> (List[BrokenLinkFileData], List[BrokenLinkFileData]):
     """
     Compare two reports and return the list of newly broken links and the list of known/existing
     broken links.

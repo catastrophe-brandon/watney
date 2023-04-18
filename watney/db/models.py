@@ -20,7 +20,7 @@ class BrokenLinkFileData(SQLModel, table=True):
     repo_name: str = Field(default=None, primary_key=True)
     repo_url: str = Field(default=None, primary_key=True)
     file: str = Field(default=None, primary_key=True)
-    url: str
+    url: str = Field(default=None, primary_key=True)
     status_code: int
 
 
